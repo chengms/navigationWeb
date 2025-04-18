@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人导航</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        .card {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(229, 231, 235, 0.5);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        .search-container {
+            backdrop-filter: blur(8px);
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .category-title {
+            position: relative;
+            padding-left: 1rem;
+            scroll-margin-top: 6rem;
+        }
+        .category-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 1.5em;
+            background: #3B82F6;
+            border-radius: 2px;
+        }
+        .side-nav {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 200px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border-right: 1px solid rgba(229, 231, 235, 0.5);
+            padding-top: 6rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        .side-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+        .side-nav::-webkit-scrollbar-thumb {
+            background: #CBD5E0;
+            border-radius: 2px;
+        }
+        .nav-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #4B5563;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .nav-link:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563EB;
+            border-left-color: #2563EB;
+        }
+        .nav-link.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563EB;
+            border-left-color: #2563EB;
+            font-weight: 600;
+        }
+        .toggle-nav {
+            position: fixed;
+            left: 1rem;
+            top: 1rem;
+            z-index: 60;
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .side-nav {
+                transform: translateX(-200px);
+                z-index: 50;
+            }
+            .side-nav.show {
+                transform: translateX(0);
+            }
+            .toggle-nav {
+                display: block;
+            }
+            .search-container {
+                padding: 0.5rem;
+            }
+        }
+        .main-content {
+            margin-left: 200px;
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        .site-search-container {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .site-search-container.show {
+            max-height: 300px;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        .search-result {
+            transition: all 0.2s ease;
+        }
+        .search-result:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .highlight {
+            background-color: rgba(59, 130, 246, 0.2);
+            padding: 0.1em 0.2em;
+            border-radius: 0.2em;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <button class="toggle-nav p-2 rounded-lg bg-white shadow-md" onclick="toggleNav()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+
+    <nav class="side-nav" id="sideNav">
+        <!-- 导航链接将通过 JavaScript 动态生成 -->
+    </nav>
+
+    <div class="main-content">
+        <div class="search-container fixed top-0 left-0 right-0 p-4 z-50">
+            <div class="max-w-3xl mx-auto">
+                <div class="flex gap-2">
+                    <select id="searchEngine" name="searchEngine" class="px-4 py-2 rounded-lg shadow-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200">
+                        <option value="https://cn.bing.com/search?q=" selected>Bing</option>
+                        <option value="https://www.google.com/search?q=">Google</option>
+                        <option value="https://www.baidu.com/s?wd=">百度</option>
+                    </select>
+                    <input type="text" id="searchInput" name="searchInput"
+                        class="flex-1 px-4 py-2 rounded-lg shadow-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200" 
+                        placeholder="按 Enter 搜索或 Cmd/Ctrl + Enter 快速跳转"
+                        autocomplete="off">
+                </div>
+                <div id="siteSearchContainer" class="site-search-container">
+                    <div class="p-2">
+                        <div id="searchResults" class="space-y-2">
+                            <!-- 搜索结果将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-24 md:mt-20 px-4 py-8" id="siteContainer">
+            <!-- 站点内容将通过JavaScript动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        // 图标缓存
+        const iconCache = new Map();
+
+        // 获取网站图标
+        async function getFavicon(url) {
+            try {
+                const domain = new URL(url).origin;
+
+                // 检查缓存
+                if (iconCache.has(domain)) {
+                    return iconCache.get(domain);
+                }
+
+                // 使用默认图标
+                const defaultIcon = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="35" fill="#a0a0a0" text-anchor="middle" dominant-baseline="central">?</text></svg>')}`;
+                iconCache.set(domain, defaultIcon);
+                return defaultIcon;
+            } catch (error) {
+                console.error('Error in getFavicon:', error);
+                return defaultIcon;
+            }
+        }
+
+        // 从CSV文件加载站点数据
+        async function loadSites() {
+            try {
+                console.log('开始加载站点数据...');
+                const response = await fetch('sites.csv');
+                if (!response.ok) {
+                    throw new Error(`Failed to load sites.csv: ${response.status} ${response.statusText}`);
+                }
+                const text = await response.text();
+                console.log('成功读取CSV文件');
+
+                const rows = text.split('\n')
+                    .map(row => row.trim())
+                    .filter(row => row && !row.startsWith('#')); // 过滤空行和注释行
+                
+                console.log(`解析到 ${rows.length} 行数据`);
+                
+                if (rows.length === 0) {
+                    throw new Error('No valid data found in sites.csv');
+                }
+
+                console.log('开始处理每一行数据...');
+                const sites = await Promise.all(rows.slice(1).map(async (row, index) => {
+                    try {
+                        const parts = row.split(',').map(item => item.trim());
+                        if (parts.length < 5) {
+                            console.warn(`第 ${index + 2} 行格式无效:`, row);
+                            return null;
+                        }
+                        const [category, name, url, iconUrl, description] = parts;
+
+                        // 过滤掉本地网站
+                        if (url.startsWith('http://172.16') || url.includes('localhost') || url.includes('127.0.0.1')) {
+                            console.log(`跳过本地网站: ${name}`);
+                            return null;
+                        }
+
+                        console.log(`处理站点: ${name}, 图标URL: ${iconUrl}`);
+                        
+                        // 直接使用 CSV 中的图标 URL
+                        const icon = iconUrl || await getFavicon(url);
+                        
+                        const categoryParts = category.split('/');
+                        const mainCategory = categoryParts[0];
+                        const subCategory = categoryParts.length > 1 ? categoryParts[1] : null;
+                        return { mainCategory, subCategory, name, url, icon, description };
+                    } catch (error) {
+                        console.error(`处理第 ${index + 2} 行时出错:`, error);
+                        return null;
+                    }
+                }));
+
+                console.log('数据处理完成，开始过滤无效数据');
+                const validSites = sites.filter(site => site !== null);
+                console.log(`有效站点数量: ${validSites.length}`);
+
+                // 存储所有站点数据用于搜索
+                allSites = validSites;
+
+                // 按主分类和子分类组织站点
+                const categories = {};
+                validSites.forEach(site => {
+                    if (!categories[site.mainCategory]) {
+                        categories[site.mainCategory] = {};
+                    }
+                    if (!categories[site.mainCategory][site.subCategory]) {
+                        categories[site.mainCategory][site.subCategory] = [];
+                    }
+                    categories[site.mainCategory][site.subCategory].push(site);
+                });
+
+                console.log('开始生成HTML');
+                // 生成HTML
+                const container = document.getElementById('siteContainer');
+                container.innerHTML = ''; // 清空容器
+                for (const [mainCategory, subCategories] of Object.entries(categories)) {
+                    const categoryHtml = `
+                        <div class="mb-12">
+                            <h2 class="text-2xl md:text-3xl font-bold mb-6 text-gray-800 category-title">${mainCategory}</h2>
+                            ${Object.entries(subCategories).map(([subCategory, sites]) => {
+                                if (subCategory === 'null') {
+                                    return `
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            ${sites.map(site => `
+                                                <a href="${site.url}" target="_blank" rel="noopener noreferrer" 
+                                                   class="card bg-white p-4 rounded-lg hover:bg-gray-50">
+                                                    <div class="flex items-center space-x-3">
+                                                        <img src="${site.icon}" alt="${site.name}" class="w-6 h-6 flex-shrink-0">
+                                                        <div class="flex-1 min-w-0">
+                                                            <h4 class="font-semibold text-gray-800 truncate">${site.name}</h4>
+                                                            <p class="text-sm text-gray-600 truncate">${site.description}</p>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            `).join('')}
+                                        </div>
+                                    `;
+                                } else {
+                                    return `
+                                        <div class="mb-8">
+                                            <h3 class="text-xl font-semibold mb-4 text-gray-700 pl-4 border-l-4 border-blue-400">${subCategory}</h3>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                ${sites.map(site => `
+                                                    <a href="${site.url}" target="_blank" rel="noopener noreferrer" 
+                                                       class="card bg-white p-4 rounded-lg hover:bg-gray-50">
+                                                        <div class="flex items-center space-x-3">
+                                                            <img src="${site.icon}" alt="${site.name}" class="w-6 h-6 flex-shrink-0">
+                                                            <div class="flex-1 min-w-0">
+                                                                <h4 class="font-semibold text-gray-800 truncate">${site.name}</h4>
+                                                                <p class="text-sm text-gray-600 truncate">${site.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                            }).join('')}
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', categoryHtml);
+                }
+
+                // 生成导航链接
+                generateNav(categories);
+                updateActiveLink();
+
+                // 为每个分类标题添加 id
+                const categoryTitles = document.querySelectorAll('.category-title');
+                categoryTitles.forEach(title => {
+                    title.id = title.textContent;
+                });
+
+            } catch (error) {
+                console.error('Error loading sites:', error);
+                const container = document.getElementById('siteContainer');
+                container.innerHTML = `
+                    <div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                        <p class="font-bold">加载站点数据时出错：</p>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载完成后加载站点数据
+        window.addEventListener('DOMContentLoaded', loadSites);
+
+        // 站内搜索功能
+        let allSites = [];
+        let searchTimeout;
+
+        // 搜索函数
+        function searchSites(query) {
+            if (!query) {
+                document.getElementById('siteSearchContainer').classList.remove('show');
+                return;
+            }
+
+            const results = allSites.filter(site => {
+                const searchString = `${site.name} ${site.description} ${site.mainCategory} ${site.subCategory}`.toLowerCase();
+                return searchString.includes(query.toLowerCase());
+            }).slice(0, 5); // 限制显示前5个结果
+
+            const resultsContainer = document.getElementById('searchResults');
+            if (results.length > 0) {
+                resultsContainer.innerHTML = results.map(site => {
+                    const highlightedName = highlightText(site.name, query);
+                    const highlightedDesc = highlightText(site.description, query);
+                    return `
+                        <a href="${site.url}" target="_blank" rel="noopener noreferrer" 
+                           class="search-result block p-2 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <img src="${site.icon}" alt="${site.name}" class="w-5 h-5">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">${highlightedName}</div>
+                                    <div class="text-sm text-gray-600">${highlightedDesc}</div>
+                                    <div class="text-xs text-gray-500">${site.mainCategory}${site.subCategory ? ' / ' + site.subCategory : ''}</div>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+                document.getElementById('siteSearchContainer').classList.add('show');
+            } else {
+                resultsContainer.innerHTML = '<div class="text-gray-500 text-center p-2">没有找到相关站点</div>';
+                document.getElementById('siteSearchContainer').classList.add('show');
+            }
+        }
+
+        // 高亮搜索关键词
+        function highlightText(text, query) {
+            if (!query) return text;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        // 监听搜索输入
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchSites(e.target.value);
+            }, 300);
+        });
+
+        // 点击外部关闭搜索结果
+        document.addEventListener('click', function(e) {
+            const searchContainer = document.getElementById('siteSearchContainer');
+            const searchInput = document.getElementById('searchInput');
+            if (!searchContainer.contains(e.target) && e.target !== searchInput) {
+                searchContainer.classList.remove('show');
+            }
+        });
+
+        // 修改原有的搜索事件处理
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (!query) return;
+                
+                const searchContainer = document.getElementById('siteSearchContainer');
+                if (searchContainer.classList.contains('show')) {
+                    const firstResult = document.querySelector('.search-result');
+                    if (firstResult && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        firstResult.click();
+                        return;
+                    }
+                }
+                
+                if (e.ctrlKey || e.metaKey) {
+                    // Ctrl/Cmd + Enter: 直接跳转到第一个匹配的链接
+                    const links = Array.from(document.getElementsByTagName('a'));
+                    const matchedLinks = links.filter(link => 
+                        link.textContent.toLowerCase().includes(query.toLowerCase()));
+                    
+                    if (matchedLinks.length > 0) {
+                        window.location.href = matchedLinks[0].href;
+                    } else {
+                        // 如果没有匹配的链接，使用搜索引擎搜索
+                        const searchEngine = document.getElementById('searchEngine').value;
+                        window.location.href = `${searchEngine}${encodeURIComponent(query)}`;
+                    }
+                    return;
+                }
+                
+                // 普通回车：使用选定的搜索引擎
+                const searchEngine = document.getElementById('searchEngine').value;
+                window.location.href = `${searchEngine}${encodeURIComponent(query)}`
+            }
+        });
+
+        // 生成导航链接
+        function generateNav(categories) {
+            const nav = document.getElementById('sideNav');
+            nav.innerHTML = Object.keys(categories).map(category => `
+                <a href="#${category}" 
+                   class="nav-link" 
+                   onclick="updateActiveLink(this)"
+                   data-category="${category}">
+                    ${category}
+                </a>
+            `).join('');
+        }
+
+        // 更新活动链接状态
+        function updateActiveLink(clickedLink = null) {
+            const links = document.querySelectorAll('.nav-link');
+            links.forEach(link => link.classList.remove('active'));
+            
+            if (clickedLink) {
+                clickedLink.classList.add('active');
+                // 阻止默认的跳转行为
+                event.preventDefault();
+                // 获取目标分类的元素
+                const targetId = clickedLink.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    // 计算目标位置，考虑顶部固定导航栏的高度
+                    const offset = 80; // 顶部导航栏高度加上一些额外空间
+                    const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - offset;
+                    // 平滑滚动到目标位置
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+                // 在移动端自动关闭导航栏
+                if (window.innerWidth <= 768) {
+                    toggleNav();
+                }
+            } else {
+                // 根据滚动位置更新活动链接
+                const scrollPosition = window.scrollY + 100;
+                const categories = document.querySelectorAll('.category-title');
+                let activeCategory = null;
+
+                categories.forEach(category => {
+                    if (category.offsetTop <= scrollPosition) {
+                        activeCategory = category.textContent;
+                    }
+                });
+
+                if (activeCategory) {
+                    const activeLink = document.querySelector(`.nav-link[data-category="${activeCategory}"]`);
+                    if (activeLink) activeLink.classList.add('active');
+                }
+            }
+        }
+
+        // 切换导航栏显示
+        function toggleNav() {
+            document.getElementById('sideNav').classList.toggle('show');
+        }
+
+        // 监听滚动事件
+        window.addEventListener('scroll', () => {
+            updateActiveLink();
+        });
+    </script>
+</body>
+</html>
